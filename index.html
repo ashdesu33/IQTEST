@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When2Meet Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #charts{
+        }
+        .chart-container {
+            transform: scale(0.6);
+            transform-origin: top left;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .grid {
+            display: grid;
+            grid-template-rows: repeat(auto-fit, minmax(24px, 1fr)); /* Reduce row height */
+            grid-auto-flow: column;
+            gap: 1px;
+            margin-top: 5px;
+            overflow: visible;
+            white-space: nowrap;
+        }
+        .cell {
+            width: 100%;
+            height: 10px;
+            text-align: center;
+            line-height: 30px;
+            border: 0.1px solid #ccc;
+            font-size: 9px;
+        }
+
+        .available {
+            background-color: lightgreen;
+        }
+        .unavailable {
+            background-color: lightcoral;
+        }
+    </style>
+</head>
+<body>
+    <h2>When2Meet Individual Availability Charts</h2>
+    <div id="charts"></div>
+    
+    <script>
+        async function loadCSV() {
+            const response = await fetch("when2meet_export.csv");
+            const text = await response.text();
+            
+            Papa.parse(text, {
+                delimiter: ",",
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processCSV(results.data);
+                }
+            });
+        }
+        
+        function processCSV(data) {
+            if (data.length < 2) {
+                console.error("CSV format is incorrect.");
+                return;
+            }
+            
+            // Extract column headers from first row
+            const headers = data[0];
+            const people = headers.slice(1); // Skip 'time'
+            
+            const availabilityData = {};
+            
+            data.slice(1).forEach(row => {
+                let timestamp = row[0];
+                let date = timestamp.split(" ")[0]; // Extract date part
+                let time = timestamp.split(" ")[1]; // Extract time part
+                
+                if (!availabilityData[date]) {
+                    availabilityData[date] = {};
+                }
+                
+                people.forEach((person, index) => {
+                    if (!availabilityData[date][person]) {
+                        availabilityData[date][person] = [];
+                    }
+                    let availability = row[index + 1] === "o" ? "1" : "0";
+                    availabilityData[date][person].push({ time, availability });
+                });
+            });
+            
+            const chartsDiv = document.getElementById("charts");
+            chartsDiv.innerHTML = ""; // Clear previous content
+            
+            people.forEach(person => {
+                const chartContainer = document.createElement("div");
+                chartContainer.classList.add("chart-container");
+                chartContainer.innerHTML = `<h3>${person.trim()}</h3>`;
+                
+                const grid = document.createElement("div");
+                grid.classList.add("grid");
+                
+                Object.keys(availabilityData).forEach(date => {
+                    const column = document.createElement("div");
+                    column.classList.add("grid-column");
+                    
+                    const dateTitle = document.createElement("div");
+                    dateTitle.classList.add("cell");
+                    dateTitle.textContent = date;
+                    column.appendChild(dateTitle);
+                    
+                    availabilityData[date][person].forEach(slot => {
+                        const cell = document.createElement("div");
+                        cell.classList.add("cell", slot.availability === "1" ? "available" : "unavailable");
+                        column.appendChild(cell);
+                    });
+                    
+                    grid.appendChild(column);
+                });
+                
+                chartContainer.appendChild(grid);
+                chartsDiv.appendChild(chartContainer);
+            });
+        }
+        
+        loadCSV();
+    </script>
+</body>
+</html>
