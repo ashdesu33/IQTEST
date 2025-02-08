@@ -9,47 +9,84 @@
         body {
             font-family: Arial, sans-serif;
         }
-        #charts{
-        }
-        .chart-container {
-            transform: scale(0.9);
-            transform-origin: top left;
-            margin-bottom: 10px;
-            display: inline-block;
-        }
-        .grid {
-            display: grid;
-            grid-template-rows: repeat(auto-fit, minmax(24px, 1fr)); /* Reduce row height */
-            grid-auto-flow: column;
-            gap: 1px;
-            margin-top: 5px;
-            overflow: visible;
-            white-space: nowrap;
-        }
-        .cell {
-            width: 100%;
-            height: 10px;
-            text-align: center;
-            line-height: 30px;
-            border: 0.1px solid #ccc;
-            font-size: 9px;
-        }
+        #charts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* Consistent spacing between charts */
+    }
+    .type_container{
+        width: 400px; 
+        display: inline-block;
+        margin: 10px; 
+        vertical-align: top;
+        transform-origin: top left;
+    }
 
-        .available {
-            background-color: lightgreen;
-        }
-        .unavailable {
-            background-color: lightcoral;
-        }
+    .chart-container {
+        width: 150px; 
+        display: inline-block;
+        margin: 10px; 
+        margin-bottom: -400px;
+        vertical-align: top;
+        scale: 0.3;
+        transform-origin: top left;
+    }
+
+    .chart-container h3 {
+        font-size: 1.2rem; 
+
+        text-align: center;
+        margin-bottom: 5px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-rows: repeat(auto-fit, minmax(15px, 1fr)); /* Adjust height */
+        grid-auto-flow: column;
+        gap: 1px;
+        margin-top: 5px;
+        white-space: nowrap;
+        overflow: visible;
+    }
+
+    .cell {
+        width: 100%;
+        height: 8px; 
+        text-align: center;
+        line-height: 8px;
+        border: 0.1px solid #000000;
+        font-size: 8px;
+    }
+
+    .type{
+        background-color: rgb(0, 151, 43);
+        border-style: none;
+        width: 103%;
+    }
+
+    .available {
+        background-color: lightgreen;
+    }
+    .unavailable {
+        background-color: lightcoral;
+    }
     </style>
 </head>
 <body>
     <h2>When2Meet IQ Charts</h2>
+    <div id="buttons"></div>
+    <div id="type_chart"></div>
     <div id="charts"></div>
     
     <script>
+        let categoryMapping = {};
+        const availabilityData = {};
+        let currentCategoryData = {};
+        let people ={};
+        let headers ={};
+        let de = [];
         async function loadCSV() {
-            const response = await fetch("when2meet_export.csv");
+            const response = await fetch("with_type.csv");
             const text = await response.text();
             
             Papa.parse(text, {
@@ -60,6 +97,80 @@
                 }
             });
         }
+
+        function type_chart(){
+            const typeDiv = document.getElementById("type_chart");
+            typeDiv.innerHTML = "";
+            let type_chart_container = document.createElement("div");
+            type_chart_container.classList.add("type_container");
+            const type_grid = document.createElement("div");
+            type_grid.classList.add("grid");
+            let count = 0;
+            Object.keys(availabilityData).forEach(date => {
+
+                    const column = document.createElement("div");
+                    column.classList.add("grid-column");  
+                    const dateTitle = document.createElement("div");
+                    dateTitle.classList.add("cell");
+                    dateTitle.textContent = date;
+                    column.appendChild(dateTitle); 
+                    availabilityData[date][people[0]].forEach(slot => {
+                    const cell = document.createElement("div");
+                    cell.innerHTML = " ";
+                    cell.classList.add("cell", "type");
+                    cell.setAttribute("id",count);
+                    cell.style.opacity = 0;
+                    column.appendChild(cell);
+                    count++;
+                    });
+                   
+                    type_grid.appendChild(column);
+                });
+            type_chart_container.appendChild(type_grid);
+            typeDiv.appendChild(type_chart_container);
+            people.forEach(person => {
+                let c = 0;
+                Object.keys(availabilityData).forEach(date => {
+                    availabilityData[date][person].forEach(slot => {
+                        const target_c = document.getElementById(c);
+                        c++;
+                        let o = parseFloat(target_c.style.opacity) || 0; // Ensure opacity is treated as a number
+                        console.log(o);
+                        target_c.style.opacity = (slot.availability === "1" ? o + 1/40.0 : o);
+                    });
+                    
+                });
+                
+               
+            }); 
+
+        }
+        function renderChart(arr){
+            const container = document.getElementsByClassName("type_container")[0];
+            const cells = container.querySelectorAll(".cell");
+            cells.forEach(cell =>{
+                cell.style.opacity = 0;
+            });
+            let p = 0;
+            people.forEach(person => {
+                let c = 0;
+                if(arr.includes(p)){
+                    console.log(person);
+                Object.keys(availabilityData).forEach(date => {
+                    availabilityData[date][person].forEach(slot => {
+                        const target_c = document.getElementById(c);
+                        c++;
+                        
+                        let o = parseFloat(target_c.style.opacity) || 0; // Ensure opacity is treated as a number
+                        console.log(o);
+                        target_c.style.opacity = (slot.availability === "1" ? o + 1/8.0 : o);
+                    });
+                    
+                });
+                }
+                p++;
+            }); 
+        }
         
         function processCSV(data) {
             if (data.length < 2) {
@@ -68,12 +179,11 @@
             }
             
             // Extract column headers from first row
-            const headers = data[0];
-            const people = headers.slice(1); // Skip 'time'
+            headers = data[1];
+            people = headers.slice(1); // Skip 'time'
             
-            const availabilityData = {};
             
-            data.slice(1).forEach(row => {
+            data.slice(2).forEach(row => {
                 let timestamp = row[0];
                 let date = timestamp.split(" ")[0]; // Extract date part
                 let time = timestamp.split(" ")[1]; // Extract time part
@@ -92,7 +202,23 @@
             });
             
             const chartsDiv = document.getElementById("charts");
-            chartsDiv.innerHTML = ""; // Clear previous content
+            chartsDiv.innerHTML = "";
+            categories = data[0].slice(1);
+            categoryMapping = {};
+            people.forEach((person, index) => {
+                let category = categories[index].trim();
+                if (!categoryMapping[category]) {
+                    categoryMapping[category] = [];
+                }
+                console.log(category);
+                de.push(index)
+                categoryMapping[category].push(index + 1);
+            });
+            createButtons(data);
+            currentCategoryData = availabilityData;
+            console.log(availabilityData);
+            type_chart();
+        
             
             people.forEach(person => {
                 const chartContainer = document.createElement("div");
@@ -124,8 +250,24 @@
                 chartsDiv.appendChild(chartContainer);
             });
         }
+        function createButtons(data) {
+            console.log(categoryMapping);
+            const buttonsDiv = document.getElementById("buttons");
+            buttonsDiv.innerHTML = "";
+            Object.keys(categoryMapping).forEach(category => {
+                let btn = document.createElement("button");
+                btn.textContent = category;
+                btn.onclick = () => {
+                    currentCategory = category;
+                    renderChart(categoryMapping[category]);
+
+                };
+                buttonsDiv.appendChild(btn);
+            });
+        }
         
         loadCSV();
+        
     </script>
 </body>
 </html>
