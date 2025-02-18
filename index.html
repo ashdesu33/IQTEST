@@ -5,72 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>When2Meet IQ test</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        #charts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px; /* Consistent spacing between charts */
-    }
-    .type_container{
-        width: 400px; 
-        display: inline-block;
-        margin: 10px; 
-        vertical-align: top;
-        transform-origin: top left;
-    }
-
-    .chart-container {
-        width: 150px; 
-        display: inline-block;
-        margin: 10px; 
-        margin-bottom: -400px;
-        vertical-align: top;
-        scale: 0.3;
-        transform-origin: top left;
-    }
-
-    .chart-container h3 {
-        font-size: 1.2rem; 
-
-        text-align: center;
-        margin-bottom: 5px;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-rows: repeat(auto-fit, minmax(15px, 1fr)); /* Adjust height */
-        grid-auto-flow: column;
-        gap: 1px;
-        margin-top: 5px;
-        white-space: nowrap;
-        overflow: visible;
-    }
-
-    .cell {
-        width: 100%;
-        height: 8px; 
-        text-align: center;
-        line-height: 8px;
-        border: 0.1px solid #000000;
-        font-size: 8px;
-    }
-
-    .type{
-        background-color: rgb(0, 151, 43);
-        border-style: none;
-        width: 103%;
-    }
-
-    .available {
-        background-color: lightgreen;
-    }
-    .unavailable {
-        background-color: lightcoral;
-    }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <h2>When2Meet IQ Charts</h2>
@@ -79,12 +14,21 @@
     <div id="charts"></div>
     
     <script>
+
+        /**
+         * variables
+         **/
         let categoryMapping = {};
         const availabilityData = {};
         let currentCategoryData = {};
         let people ={};
         let headers ={};
-        let de = [];
+
+
+        /**
+         * method to load the local csv file
+         * proceed to processCSV method to draw charts
+         **/
         async function loadCSV() {
             const response = await fetch("with_type.csv");
             const text = await response.text();
@@ -98,6 +42,11 @@
             });
         }
 
+        /**
+         * render the default category chart on the top
+         * default should replicate the overall heatmap
+         **/
+
         function type_chart(){
             const typeDiv = document.getElementById("type_chart");
             typeDiv.innerHTML = "";
@@ -106,8 +55,9 @@
             const type_grid = document.createElement("div");
             type_grid.classList.add("grid");
             let count = 0;
-            Object.keys(availabilityData).forEach(date => {
 
+            // draw an empty cell first by looping through all the dates->hour interval
+            Object.keys(availabilityData).forEach(date => {
                     const column = document.createElement("div");
                     column.classList.add("grid-column");  
                     const dateTitle = document.createElement("div");
@@ -128,6 +78,8 @@
                 });
             type_chart_container.appendChild(type_grid);
             typeDiv.appendChild(type_chart_container);
+
+            // loop through each person to accumulate color intensity
             people.forEach(person => {
                 let c = 0;
                 Object.keys(availabilityData).forEach(date => {
@@ -135,16 +87,15 @@
                         const target_c = document.getElementById(c);
                         c++;
                         let o = parseFloat(target_c.style.opacity) || 0; // Ensure opacity is treated as a number
-                        console.log(o);
-                        target_c.style.opacity = (slot.availability === "1" ? o + 1/40.0 : o);
-                    });
-                    
-                });
-                
-               
+                        target_c.style.opacity = (slot.availability === "1" ? o + 1/40.0 : o); //1/40 for higher contrast
+                    });        
+                });   
             }); 
-
         }
+
+        /**
+         * generate the chart base on the selected category
+         **/
         function renderChart(arr){
             const container = document.getElementsByClassName("type_container")[0];
             const cells = container.querySelectorAll(".cell");
@@ -152,6 +103,8 @@
                 cell.style.opacity = 0;
             });
             let p = 0;
+
+            // similar to line 84-94 but for using different accumulate value(1/12.0)
             people.forEach(person => {
                 let c = 0;
                 if(arr.includes(p)){
@@ -160,10 +113,8 @@
                     availabilityData[date][person].forEach(slot => {
                         const target_c = document.getElementById(c);
                         c++;
-                        
-                        let o = parseFloat(target_c.style.opacity) || 0; // Ensure opacity is treated as a number
-                        console.log(o);
-                        target_c.style.opacity = (slot.availability === "1" ? o + 1/8.0 : o);
+                        let o = parseFloat(target_c.style.opacity) || 0;
+                        target_c.style.opacity = (slot.availability === "1" ? o + 1/12.0 : o);
                     });
                     
                 });
@@ -172,6 +123,9 @@
             }); 
         }
         
+        /**
+         *  This is the big method chunk to draw the category chart and individual response chart.
+         **/
         function processCSV(data) {
             if (data.length < 2) {
                 console.error("CSV format is incorrect.");
@@ -183,6 +137,7 @@
             people = headers.slice(1); // Skip 'time'
             
             
+            // pusing all the availability interval into availabilityData
             data.slice(2).forEach(row => {
                 let timestamp = row[0];
                 let date = timestamp.split(" ")[0]; // Extract date part
@@ -201,6 +156,8 @@
                 });
             });
             
+            // line 160-173 is to extract all the category type in the csv
+            // also store the corresponding response index 
             const chartsDiv = document.getElementById("charts");
             chartsDiv.innerHTML = "";
             categories = data[0].slice(1);
@@ -210,16 +167,16 @@
                 if (!categoryMapping[category]) {
                     categoryMapping[category] = [];
                 }
-                console.log(category);
-                de.push(index)
                 categoryMapping[category].push(index + 1);
             });
+
+            // call methods to draw the type chart on the top
             createButtons(data);
             currentCategoryData = availabilityData;
-            console.log(availabilityData);
             type_chart();
         
             
+            // draw invidiual response 
             people.forEach(person => {
                 const chartContainer = document.createElement("div");
                 chartContainer.classList.add("chart-container");
@@ -250,8 +207,12 @@
                 chartsDiv.appendChild(chartContainer);
             });
         }
+
+        /**
+         * generate category buttons
+         * send the corresponding response index when clicked
+         **/
         function createButtons(data) {
-            console.log(categoryMapping);
             const buttonsDiv = document.getElementById("buttons");
             buttonsDiv.innerHTML = "";
             Object.keys(categoryMapping).forEach(category => {
